@@ -1,0 +1,92 @@
+<apex:page controller="ProductAdminCustomController">
+
+	<!--  Page to do admin action of Product Catalog Transfer via REST service from one org to another -->
+
+	<apex:form >
+		<apex:pageMessages showDetail="{!showPageMessageDetail}"/>
+		<apex:pageBlock id="thePageBlock" title="Catalog Transfer to Different Org">
+			<apex:pageBlockButtons id="buttons" location="top">
+				<apex:commandButton value="Login" action="{!authenticateToRemoteOrg}" rendered="{!NOT(auth.isAuthenticated)}"/>
+				<apex:commandButton value="Refresh Selections"  rendered="{!AND(auth.isAuthenticated)}"/>
+				<apex:commandButton value="Transfer" action="{!xferCatalog}" rendered="{!AND(auth.isAuthenticated,Xfer.xferScope<> NULL)}"/>
+				<apex:commandButton value="Transfer Reset" action="{!xferReset}" rendered="{!AND(auth.isAuthenticated,Xfer.xferScope<> NULL)}"/>
+			</apex:pageBlockButtons>
+			<apex:pageBlockSection title="Login credentials" columns="1" rendered="{!NOT(auth.isAuthenticated)}">
+				<apex:pageBlockSectionItem >
+					<apex:outputText value="Select target org"/>
+					<apex:selectList value="{!auth.orgName}" multiselect="false">
+						<apex:selectOptions value="{!auth.connectedOrgs}"/>
+					</apex:selectList>
+				</apex:pageBlockSectionItem>
+				
+				
+				<apex:pageBlockSectionItem >
+					<apex:outputText value="Username on target SFDC org"/>
+					<apex:inputText value="{!auth.username}" size="40"/>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem >
+					<apex:outputText value="Password+token on target SFDC org"/>
+					<apex:inputSecret value="{!auth.pwToken}" size="40"/>
+				</apex:pageBlockSectionItem>
+				<apex:pageBlockSectionItem >
+					<apex:outputText value="Is sandbox?"/>
+					<apex:inputCheckbox value="{!auth.isSandbox}"/>
+				</apex:pageBlockSectionItem>
+								
+			</apex:pageBlockSection>
+			
+			<apex:actionstatus id="statusMsg" startText="Refreshing..." startStyle="color:blue;"/>
+			
+			<apex:pageBlockSection id="catXfer" title="Select Scope of Catalog Transfer" columns="2" rendered="{!auth.isAuthenticated}" collapsible="false">
+				<!-- Scope of copy:  Products, Products+PricebookEntries, PricebookEntries only -->
+				<!-- Radiobuttons for pricebooks + NEXT button -->
+				<!-- Select list of checkboxes of products on selected pricebook  -->
+				<apex:outputPanel >
+					<apex:selectRadio value="{!xfer.xferScope}">
+						<apex:selectOptions value="{!xfer.xferScopeOptions}"/>
+						<apex:actionSupport event="onchange" reRender="thePageBlock" action="{!xferResetQuery}" status="statusMsg"/>
+					</apex:selectRadio>
+					<br/>
+					<apex:outputText value="PricebookEntry currencies to transfer:"/>
+					<apex:selectCheckboxes value="{!xfer.selectedCurrencyList}">
+						<apex:selectOptions value="{!xfer.xferrableCurrencyList}"/>
+						<apex:actionSupport event="onchange" reRender="thePageBlock" action="{!xferResetQuery}" status="statusMsg"/>
+					</apex:selectCheckboxes>
+					<br/>
+					<apex:outputText value="If target org has same SKU/Pricebook entry, smash? "/>
+					<apex:inputCheckBox value="{!xfer.isXferEnabledtoSmashDuplicates}"/>
+					<br/><br/>
+					<apex:selectList value="{!xfer.selectedPricebookId}" multiselect="false" rendered="{!xfer.isPricebookSelectionEnabled}">
+						<apex:selectOptions value="{!xfer.xferrablePricebooks}"/>
+						<apex:actionSupport event="onchange" reRender="thePageBlock" action="{!xferResetQuery}" status="statusMsg"/>
+					</apex:selectList>
+					<br/>
+					<apex:outputText value="Enable debugging in target org? "/>
+					<apex:inputCheckBox value="{!xfer.isXferDebugEnabled}"/>
+				
+				</apex:outputPanel>
+				
+				<apex:dataTable id="productTable" value="{!xfer.xferrableProductList}" width="100%" columnsWidth="3%,15%,82%" var="xferP" rendered="{!xfer.isProductSelectionEnabled}">
+					<apex:column >
+						<apex:facet name="header"/>
+						<apex:inputCheckBox value="{!xferP.isSelected}"/>
+					</apex:column>
+					<apex:column >
+						<apex:facet name="header">SKU</apex:facet>
+						<apex:outputField value="{!xferP.p.productCode}"/>
+					</apex:column>
+					<apex:column >
+						<apex:facet name="header">Name</apex:facet>
+						<apex:outputField value="{!xferP.p.name}" style="padding-left: 10px;"/>
+					</apex:column>
+				</apex:dataTable>
+			</apex:pageBlockSection> 
+			
+			<apex:pageBlockSection title="Log" columns="1">
+				<apex:outputText escape="false" value="{!xfer.log}"/>
+			</apex:pageBlockSection>
+			
+		</apex:pageBlock>
+	</apex:form>
+
+</apex:page>
